@@ -1,7 +1,15 @@
-import {collection, doc, setDoc} from 'firebase/firestore/lite'
+import {collection, doc, setDoc,deleteDoc} from 'firebase/firestore/lite'
 import {firebaseDB} from "../../firebase/config.js";
-import {addNewEmptyNote, savingNewNote, setActiveNote, setNotes, setSaving, updateNote} from "./journalSlice.js";
-import {loadNotes} from "../../helpers/index.js";
+import {
+    addNewEmptyNote, deleteNoteById,
+    savingNewNote,
+    setActiveNote,
+    setNotes,
+    setPhotosToActiveNote,
+    setSaving,
+    updateNote
+} from "./journalSlice.js";
+import {fileUpload, loadNotes} from "../../helpers/index.js";
 
 export const startNewNote = () => {
     return async (dispatch, getState) => {
@@ -47,5 +55,30 @@ export const startSavingNote = () =>{
         const docRef = doc(firebaseDB, `${uid}/journal/notes/${note.id}`)
         await setDoc(docRef, noteToFirestore,{merge:true});
         dispatch(updateNote(note))
+    }
+}
+export const startUploadingFiles = (files = []) =>{
+    return async (dispatch) => {
+        dispatch(setSaving());
+        //para disparar muchas promesas simultaneamente
+        const fileUploadPromises = []
+
+        for (const file of files) {
+            fileUploadPromises.push(fileUpload(file))
+        }
+        const imageUrls= await Promise.all(fileUploadPromises)
+        dispatch(setPhotosToActiveNote(imageUrls))
+    }
+}
+
+export const startDeletingNote = () =>{
+    return async (dispatch, getState) => {
+        const {uid} = getState().auth
+        const {active:note} = getState().journal
+        const docRef = doc(firebaseDB, `${uid}/journal/notes/${note.id}`)
+        await deleteDoc(docRef);
+
+        dispatch(deleteNoteById(note.id))
+
     }
 }
